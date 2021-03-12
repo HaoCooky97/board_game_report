@@ -22,4 +22,8 @@ class Board {
   void removeUser(String name) {
     users.remove(name);
   }
+
+  bool existUser(String name) {
+    return users.containsKey(name);
+  }
 }

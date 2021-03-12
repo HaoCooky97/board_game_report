@@ -1,4 +1,5 @@
 import 'package:board_game_report/board.dart';
+import 'package:board_game_report/common/ui/atoms/atoms.dart';
 import 'package:board_game_report/exist_exception.dart';
 import 'package:board_game_report/user.dart';
 import 'package:board_game_report/user_item.dart';
@@ -35,15 +36,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   MyHomePage({Key? key, required this.title}) : super(key: key);
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
   final String title;
 
   @override
@@ -53,11 +45,13 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   late Board board;
   User? _userSelected;
+  late TextEditingController controller;
 
   @override
   void initState() {
     super.initState();
     board = Board.init(widget.title);
+    controller = TextEditingController();
   }
 
   @override
@@ -65,79 +59,107 @@ class _MyHomePageState extends State<MyHomePage> {
     final List<User> users = this.board.users.values.toList();
     final bool userHover = _userSelected != null;
     final buttonAddUser = FloatingActionButton(
-      onPressed: handleAddUser,
+      onPressed: canAddUser() ? handleAddUser : null,
       child: Icon(Icons.add),
     );
     return Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-          actions: [buttonAddUser],
-        ),
-        body: Flex(
-          direction: Axis.vertical,
-          children: [
-            Flexible(
-              child: ListView.builder(
-                itemCount: users.length,
-                itemBuilder: (_, index) {
-                  return UserItem(
+        body: Container(
+      margin: EdgeInsets.symmetric(vertical: 16),
+      child: Flex(
+        direction: Axis.vertical,
+        children: [
+          Container(
+            height: 64,
+            margin: EdgeInsets.all(16),
+            child: Flex(
+              direction: Axis.horizontal,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: BorderEditText(
+                    controller: controller,
+                    onChanged: (_) {
+                      setState(() {});
+                    },
+                  ),
+                  flex: 4,
+                ),
+                Flexible(child: buttonAddUser),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              itemCount: users.length,
+              itemBuilder: (_, index) {
+                if (_userSelected?.name == users[index].name) {
+                  return UserItem.selected(
                     users[index],
                     onUserPress: () => handleUserPress(users[index]),
+                    onDeletePress: () => handleDeleteUser(users[index]),
                   );
-                },
-              ),
+                }
+                return UserItem(
+                  users[index],
+                  onUserPress: () => handleUserPress(users[index]),
+                );
+              },
             ),
-            userHover
-                ? Container(
-                    height: 64,
-                    child: Flex(
-                      direction: Axis.horizontal,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Flexible(
-                          child: Center(
-                            child: Text(
-                              _userSelected!.total().toString(),
-                              style: Theme.of(context).textTheme.headline3,
+          ),
+          userHover
+              ? Container(
+                  height: 64,
+                  child: Flex(
+                    direction: Axis.horizontal,
+                    children: [
+                      Flexible(
+                        child: Center(
+                          child: Text(
+                            _userSelected!.total().toString(),
+                            style: Theme.of(context).textTheme.headline3,
+                          ),
+                        ),
+                        flex: 1,
+                      ),
+                      Flexible(
+                        child: Flex(
+                          direction: Axis.horizontal,
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            // FloatingActionButton(
+                            //   onPressed: () {},
+                            //   child: Text("Huề"),
+                            //   backgroundColor: Colors.blue,
+                            // ),
+                            FloatingActionButton(
+                              onPressed: handleLoose,
+                              child: Text("Thua"),
+                              backgroundColor: Colors.red,
                             ),
-                          ),
-                          flex: 1,
+                            FloatingActionButton(
+                              onPressed: handleWin,
+                              child: Text("Thắng"),
+                              backgroundColor: Colors.green,
+                            ),
+                          ],
                         ),
-                        Flexible(
-                          child: Flex(
-                            direction: Axis.horizontal,
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              // FloatingActionButton(
-                              //   onPressed: () {},
-                              //   child: Text("Huề"),
-                              //   backgroundColor: Colors.blue,
-                              // ),
-                              FloatingActionButton(
-                                onPressed: handleLoose,
-                                child: Text("Thua"),
-                                backgroundColor: Colors.red,
-                              ),
-                              FloatingActionButton(
-                                onPressed: handleWin,
-                                child: Text("Thắng"),
-                                backgroundColor: Colors.green,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : SizedBox()
-          ],
-        ));
+                      ),
+                    ],
+                  ),
+                )
+              : SizedBox()
+        ],
+      ),
+    ));
   }
 
   void handleAddUser() {
     try {
       setState(() {
-        this.board.addUser(User("${DateTime.now()}"));
+        String name = controller.text;
+        if (name.trim().isNotEmpty || this.board.existUser(name)) {
+          this.board.addUser(User(name));
+        }
       });
     } catch (ex) {
       if (ex is ExistException) {
@@ -160,6 +182,23 @@ class _MyHomePageState extends State<MyHomePage> {
       print(ex);
     }
   }
+
+  void handleDeleteUser(User user) {
+    try {
+      setState(() {
+        this.board.removeUser(user.name);
+        if (_userSelected?.name == user.name) {
+          _userSelected = null;
+        }
+      });
+    } catch (ex) {
+      print(ex);
+    }
+  }
+
+  bool canAddUser() =>
+      controller.text.trim().isNotEmpty ||
+      this.board.existUser(controller.text);
 
   void handleWin() {
     try {

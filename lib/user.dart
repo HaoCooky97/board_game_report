@@ -1,3 +1,5 @@
+enum Status { win, lose, equal }
+
 class User {
   final String name;
   int chip;
@@ -21,6 +23,14 @@ class User {
   int bet(int chip) {
     this.chip = chip;
     return this.chip;
+  }
+
+  Status getStatus() {
+    final chip = total();
+    if (chip == 0) {
+      return Status.equal;
+    }
+    return chip > 0 ? Status.win : Status.lose;
   }
 
   int total() => _winChip - _loseChip;
